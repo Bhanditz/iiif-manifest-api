@@ -15,6 +15,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.ZoneOffset;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Base64;
 import java.util.Date;
 
 /**
@@ -41,6 +42,19 @@ public class CacheUtils {
         }
         return eTag;
     }
+
+
+    /**
+     * Strips off the W/ prefix and the double quotes of the (weak) eTag and BASE64-decodes the remainder to
+     * obtain the SHA256-hashed original eTag string plus the Manifest API version
+     * @param eTag retrieved from the request's If-None-Match or If-Match header
+     * @return String[2] containing [0] eTag and [1] Manifest API version
+     */
+    public static String[] decodeBase64ETag(String eTag){
+        String strippedTag = StringUtils.remove(StringUtils.stripStart(eTag, "W/"), "\"");
+        return StringUtils.splitByWholeSeparator(new String(Base64.getDecoder().decode(strippedTag)), null);
+    }
+
 
     /**
      * Generate the default headers for sending a response with caching

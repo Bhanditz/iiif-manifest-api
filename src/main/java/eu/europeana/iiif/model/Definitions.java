@@ -50,6 +50,11 @@ public final class Definitions {
     public static final String MEDIA_TYPE_JSONLD = "application/ld+json";
 
     /**
+     * Media type for json
+     */
+    public static final String MEDIA_TYPE_JSON = "application/json";
+
+    /**
      * Media type for IIIF version 2
      */
     public static final String MEDIA_TYPE_IIIF_V2 = "http://iiif.io/api/presentation/2/context.json";
