@@ -5,6 +5,7 @@ import eu.europeana.iiif.model.v2.ManifestV2;
 import eu.europeana.iiif.model.v3.ManifestV3;
 import eu.europeana.iiif.service.ManifestService;
 import eu.europeana.iiif.service.ManifestSettings;
+import eu.europeana.iiif.service.RecordResponse;
 import eu.europeana.iiif.web.ManifestController;
 import org.junit.Before;
 import org.junit.Test;
@@ -48,6 +49,7 @@ public class ManifestControllerTest {
     private static final String ETAG_HEADER_V2 = "W/\"f0524d47eba1d4f83dbc02cd1786a4e12edfa2a187b0dab730ec9310fa01868d\"";
     private static final String ETAG_HEADER_V3 = "W/\"545f96ddfbdef6a91d60d0176229e8a2abb73f20694b425bd428573f522e0bbe\"";
     private static final String ETAG_HEADER_FALSE = "W/\"ca3d67df3ee77ece353fd070203c47a43ea383558df10a4ab0cd2ce4b46d7643\"";
+    private final RecordResponse JSON_RESPONSE = new RecordResponse(JSON_RECORD);
 
     @Autowired
     private MockMvc mockMvc;
@@ -64,8 +66,8 @@ public class ManifestControllerTest {
         // mock v2 and v3 manifest responses
         ManifestV2 manifest2 = new ManifestV2("/1/2", "/1/2");
         ManifestV3 manifest3 = new ManifestV3("/1/2", "/1/2");
-        given(manifestService.getRecordJson("/1/2", "test")).willReturn(JSON_RECORD);
-        given(manifestService.getRecordJson("/1/2", "test", null)).willReturn(JSON_RECORD);
+        given(manifestService.getRecordJson("/1/2", "test")).willReturn(JSON_RESPONSE);
+        given(manifestService.getRecordJson("/1/2", "test", null)).willReturn(JSON_RESPONSE);
         given(manifestService.generateManifestV2(eq(JSON_RECORD), anyBoolean(), any())).willReturn(manifest2);
         given(manifestService.generateManifestV3(eq(JSON_RECORD), anyBoolean(), any())).willReturn(manifest3);
         given(manifestService.serializeManifest(manifest2)).willReturn(JSONLD_V2_OUTPUT);

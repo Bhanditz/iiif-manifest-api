@@ -162,7 +162,7 @@ public class ManifestServiceTest {
     }
 
     private String getRecord(String recordId) throws IIIFException {
-        String json = ms.getRecordJson(recordId, EXAMPLE_WSKEY, getRecordApiUrl());
+        String json = ms.getRecordJson(recordId, EXAMPLE_WSKEY, getRecordApiUrl()).getJson();
         assertNotNull(json);
         assertTrue(json.contains("\"about\":\""+recordId+"\""));
         return json;

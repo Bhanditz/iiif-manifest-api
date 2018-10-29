@@ -1,10 +1,6 @@
 package eu.europeana.iiif.web;
 
-import eu.europeana.iiif.model.Definitions;
-import eu.europeana.iiif.service.EdmManifestMapping;
-import eu.europeana.iiif.service.CacheUtils;
-import eu.europeana.iiif.service.ManifestService;
-import eu.europeana.iiif.service.ValidateUtils;
+import eu.europeana.iiif.service.*;
 import eu.europeana.iiif.service.exception.IIIFException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpHeaders;
@@ -21,6 +17,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static eu.europeana.iiif.model.Definitions.*;
+import static eu.europeana.iiif.service.CacheUtils.rePackage;
+import static eu.europeana.iiif.service.CacheUtils.spicAndSpan;
 
 /**
  * Rest controller that handles manifest requests
@@ -33,12 +31,23 @@ public class ManifestController {
 
     /* for parsing accept headers */
     private static final Pattern acceptProfilePattern = Pattern.compile("profile=\"(.*?)\"");
-    private static final String ACCEPT = "Accept";
-    private static final String IFNONEMATCH = "If-None-Match";
-    private static final String IFMATCH = "If-None-Match";
+    private static final String ACCEPT          = "Accept";
+    private static final String IFNONEMATCH     = "If-None-Match";
+    private static final String IFMATCH         = "If-Match";
     private static final String IFMODIFIEDSINCE = "If-Modified-Since";
+    private static final String LASTMODIFIED    = "Last-Modified";
+    private static final String ETAG            = "ETag";
+    private static final String ALLOWED         = "GET, HEAD";
+    private static final String ALLOWHEADERS    = "If-Match, If-None-Match, If-Modified-Since";
+    private static final String EXPOSEHEADERS   = "Allow, ETag, Last-Modified, Link";
+    private static final String ORIGIN          = "Origin";
+    private static final String NOCACHE         = "no-cache";
+    private static final String MAXAGE          = "600";
+    private static final String ANY             = "*";
 
     private ManifestService manifestService;
+
+    String appVersion;
 
     public ManifestController(ManifestService manifestService) {
         this.manifestService = manifestService;
@@ -71,6 +80,7 @@ public class ManifestController {
             HttpServletResponse response) throws IIIFException {
         // TODO integrate with apikey service?? (or leave it like this?)
 
+        RecordResponse recordResponse;
         String id = "/" + collectionId + "/" + recordId;
         ValidateUtils.validateWskeyFormat(wskey);
         ValidateUtils.validateRecordIdFormat(id);
@@ -90,67 +100,79 @@ public class ManifestController {
             version = acceptHeaderStatus;
         }
 
-        checkCacheHeaders(request);
+        // Evaluates the Cache headers and send the appropriate request to the Record API. The Record API's response
+        // is contained within the RecordResponse object
+        recordResponse = processCacheHeaders(request, id, wskey, recordApi);
 
-        String json = manifestService.getRecordJson(id, wskey, recordApi);
-        ZonedDateTime lastModified = EdmManifestMapping.getRecordTimestampUpdate(json);
-        String           eTag = generateETag(id, lastModified, version);
-        HttpHeaders   headers = CacheUtils.generateCacheHeaders("no-cache", eTag, lastModified, "Accept");
-        ResponseEntity cached = CacheUtils.checkCached(request, headers, lastModified, eTag);
-        if (cached != null) {
-            return cached;
-        }
+        // Evaluate the Record API's response and handle HTTP 304 & 412 statuses.
+        // Note that in case an If-None-Match request results in a HTTP 304 response, the cache related headers are
+        // also included. In other HTTP 304 & 412 cases, only the HTTP status is returned.
+        if (recordResponse.getHttpStatus() == HttpStatus.NOT_MODIFIED.value()){
+            if (recordResponse.isIfNoneMatchRequest()){
+                return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
+            } else {
+                return new ResponseEntity<>(CacheUtils.generateCacheHeaders(recordResponse, appVersion, NOCACHE, ACCEPT),
+                                            HttpStatus.NOT_MODIFIED);
+            }
+        } else if (recordResponse.getHttpStatus() == HttpStatus.PRECONDITION_FAILED.value()){
+            return new ResponseEntity<>(HttpStatus.PRECONDITION_FAILED);
+        } else if (recordResponse.getHttpStatus() != HttpStatus.OK.value()){
+            return new ResponseEntity<>(HttpStatus.INTERNAL_SERVER_ERROR);
+        } else { // HTTP 200, generate regular response + body
 
-        Object manifest;
-        if ("3".equalsIgnoreCase(version)) {
-            manifest = manifestService.generateManifestV3(json, addFullText, fullTextApi);
-            headers.add("Content-Type", MEDIA_TYPE_IIIF_JSONLD_V3);
-        } else {
-            manifest = manifestService.generateManifestV2(json, addFullText, fullTextApi); // fallback option
-            headers.add("Content-Type", MEDIA_TYPE_IIIF_JSONLD_V2);
+            String json = recordResponse.getJson();
+            HttpHeaders headers = CacheUtils.generateCacheHeaders(recordResponse, appVersion, NOCACHE, ACCEPT);
+            CacheUtils.addCorsHeaders(headers, recordResponse);
+
+            Object manifest;
+            if ("3".equalsIgnoreCase(version)) {
+                manifest = manifestService.generateManifestV3(json, addFullText, fullTextApi);
+                headers.add("Content-Type", MEDIA_TYPE_IIIF_JSONLD_V3);
+            } else {
+                manifest = manifestService.generateManifestV2(json, addFullText, fullTextApi); // fallback option
+                headers.add("Content-Type", MEDIA_TYPE_IIIF_JSONLD_V2);
+            }
+            return new ResponseEntity<>(manifestService.serializeManifest(manifest), headers, HttpStatus.OK);
         }
-        return new ResponseEntity<>(manifestService.serializeManifest(manifest), headers, HttpStatus.OK);
     }
 
-
-
-
     /**
-     * If Accept header is found && has a valid format && contains a Profile parameter:
-     * - if value = "2" or "3", return that; if other values: return "X".
-     * Else if Accept header is empty or does not contain Format parameter:
-     * - check if HTTP 'format' parameter is given. Yes, use that; no: return "2".
-     * If Accept header has invalid format: return "X"
+     * Validates contents of the Accept Header and determines what the IIIF version of the response should be,
+     * based on the contents of the that Header and the 'version' GET parameter.
+     * IF an Accept header is found AND has a valid format AND contains a Profile parameter:
+     * - if the value is valid (either "2" or "3"), return that;
+     * - if it contains another value: return "X" (resulting in HTTP 406)
+     * ELSE IF the Accept header is empty OR does not contain a Format parameter: check the 'format' parameter:
+     * - if it is supplied, use that;
+     * - if not, return the default value "2".
+     * ELSE IF the Accept header has an invalid format: return "X" (resulting in HTTP 406)
      * @param request HttpServletRequest
      * @param format  String
      * @return result String representing status of Accept Header
      */
-    // found and valid, use that; if invalid,
-    // return HTTP 406
     private String processAcceptHeader(HttpServletRequest request, String format) {
         String result = "0";
         String accept = request.getHeader(ACCEPT);
         if (validateAcceptFormat(accept) && StringUtils.isNotEmpty(accept)) {
             Matcher m = acceptProfilePattern.matcher(accept);
-            if (m.find()) { // found a Profile parameter in the Accept header
+            if (m.find()) {
                 String profiles = m.group(1);
                 if (profiles.toLowerCase(Locale.getDefault()).contains(MEDIA_TYPE_IIIF_V3)) {
                     result = "3";
                 } else if (profiles.toLowerCase(Locale.getDefault()).contains(MEDIA_TYPE_IIIF_V2)) {
                     result = "2";
                 } else {
-                    result = "X"; // Profile parameter matches neither "2" or "3" => HTTP 406
+                    result = "X";
                 }
             }
-        }  else if (StringUtils.isNotEmpty(accept)) { // validateAcceptFormat(accept) = false => HTTP 406
+        }  else if (StringUtils.isNotEmpty(accept)) {
             result = "X";
         }
-        // if result == "0": request header is empty, or does not contain a Profile parameter
         if (StringUtils.equalsIgnoreCase(result, "0")) {
             if (StringUtils.isBlank(format)){
-                result = "2";    // if format not given, fall back to default "2"
+                result = "2";
             } else {
-                result = format; // else use the format parameter
+                result = format;
             }
         }
         return result;
@@ -162,94 +184,60 @@ public class ManifestController {
                (StringUtils.containsIgnoreCase(accept, MEDIA_TYPE_JSONLD));
     }
 
-    private String generateETag(String recordId, ZonedDateTime recordUpdated, String iiifVersion) {
-        StringBuilder hashData = new StringBuilder(recordId);
-        hashData.append(recordUpdated.toString());
-        hashData.append(manifestService.getSettings().getAppVersion());
-        hashData.append(iiifVersion);
-        return CacheUtils.generateETag(hashData.toString(), true);
-    }
+//    @Deprecated
+//    private String generateETag(String recordId, ZonedDateTime recordUpdated, String iiifVersion) {
+//        StringBuilder hashData = new StringBuilder(recordId);
+//        hashData.append(recordUpdated.toString());
+//        hashData.append(appVersion);
+//        hashData.append(iiifVersion);
+//        return CacheUtils.generateSHA256ETag(hashData.toString(), true);
+//    }
 
+    private RecordResponse processCacheHeaders(HttpServletRequest request,
+                                                    String id, String wskey, URL recordApi) throws IIIFException {
 
+        String reqIfNoneMatch   = request.getHeader(IFNONEMATCH);
+        String reqIfMatch       = request.getHeader(IFMATCH);
+        String reqIfModSince    = request.getHeader(IFMODIFIEDSINCE);
+        String reqOrigin        = request.getHeader(ORIGIN);
+        appVersion              = manifestService.getSettings().getAppVersion();
+        String matchingVersionETag;
 
-    public void checkCacheHeaders(HttpServletRequest request){
-        String requestedETag = "";
-        String requestedManifestVersion = "";
-
-        // first check whether If-None-Match or If-Match headers are present
-        if (StringUtils.isNotBlank(request.getHeader(IFNONEMATCH)) ||
-            StringUtils.isNotBlank(request.getHeader(IFMATCH))){
-            // If-None-Match or If-Match are present
-            String[] cacheHeaders = {IFNONEMATCH, IFMATCH};
-            for (String cacheHeader : cacheHeaders) {
-                if (StringUtils.isNotBlank(request.getHeader(cacheHeader))){
-                    String[] decodedBase64ETag = CacheUtils.decodeBase64ETag(cacheHeader);
-                    requestedETag = decodedBase64ETag[0];
-                    requestedManifestVersion = decodedBase64ETag[1];
-                    break;
-                }
+        if (StringUtils.isNotBlank(reqIfNoneMatch)){
+            if (StringUtils.equals(CacheUtils.spicAndSpan(reqIfNoneMatch), ANY)){
+                return manifestService.getRecordJson(id, wskey, recordApi, ANY, null, reqIfModSince, reqOrigin);
             }
-            // check if manifest api version string from eTag matches current value (implicit null check)
-            if (StringUtils.equalsIgnoreCase(requestedManifestVersion, manifestService.getSettings().getAppVersion())){
-                // reported version is equal to the current Manifest API version
-                // Action: the Record's staleness needs to be checked
+            matchingVersionETag = CacheUtils.doesAnyOfTheseMatch(reqIfNoneMatch, appVersion);
+            if (StringUtils.isBlank(matchingVersionETag)) {
+                return manifestService.getRecordJson(id, wskey, recordApi);
             } else {
-                // reported version is NOT equal to the current Manifest API version (and possibly null)
-                // get a new response from the Record API, no need to check the reported SHA256 eTag
-
-                // Call Record API, CHECK:
-
-                // IF recorddata == stale THEN the Record API sends an updated response to the IIIF API who uses that
-                // to construct a JSON response, and sends that back with the received updated Record API ETag,
-                // BASE64-encoded together with the current IIIFversion
-
-                // ELSE recorddata are still valid: the Record will send the NOT CHANGED header to the IIIF
-                // Manifest, who will relay this message including the original BASE64 encoded ETag back to the client.
-
+                return manifestService.getRecordJson(id, wskey, recordApi,
+                                                     matchingVersionETag, null, reqIfModSince, reqOrigin);
             }
-            // now check if the request contains "If-Modified-Since" header
-        } else if (StringUtils.isNotBlank(request.getHeader(IFMODIFIEDSINCE))) {
-            // ==> call Record API
-            // IF record.timestamp_updated was changed since IFMODIFIEDSINCE, it sends updated record back
-            // with eTag and all. Action: build manifest, BASE64-package eTag with the IIIF version and relay back
-
-            // ELSE record.timestamp_updated NOT changed since IFMODIFIEDSINCE: the Record API only sends back a
-            // HTTP status. Action: relay this status back to the client, but no eTag can be sent.
-
-        } else {
-            // no http cache headers sent; so get a new response from the Record API, create manifest & re-package the
-            // SHA256 eTag + current manifest API version
-
-            // That's all folks!
-
+        } else if (StringUtils.isNotBlank(reqIfMatch)){
+            if (StringUtils.equals(CacheUtils.spicAndSpan(reqIfNoneMatch), ANY)){
+                return manifestService.getRecordJson(id, wskey, recordApi, null, ANY, reqIfModSince, reqOrigin);
+            }
+            matchingVersionETag = CacheUtils.doesAnyOfTheseMatch(reqIfMatch, appVersion);
+            if (StringUtils.isBlank(matchingVersionETag)) {
+                return manifestService.getRecordJson(id, wskey, recordApi, null,
+                                                     matchingVersionETag, reqIfModSince, reqOrigin);
+            } else {
+                // respond with HTTP 412
+                return new RecordResponse(412);
+            }
         }
 
+        // in all other cases:
+        return manifestService.getRecordJson(id, wskey, recordApi, null, null, reqIfModSince, reqOrigin);
+
+//            CacheUtils.addDefaultHeaders(recordResponse, "TODO ETAG", responseLastMod, ALLOWED, NOCACHE);
+//            if (StringUtils.isNotBlank(reqOrigin)){
+//                CacheUtils.addCorsHeaders(recordResponse, ALLOWED, ALLOWHEADERS, EXPOSEHEADERS, MAXAGE);
+//            }
+//            recordResponse.setHttpStatus(HttpServletResponse.SC_NOT_MODIFIED);
+            //return null;
     }
 
-
-//    private String versionFromAcceptHeader(HttpServletRequest request) {
-//        String result = "2"; // default version if no accept header is present
-//        String accept = request.getHeader("Accept");
-//        if (StringUtils.isNotEmpty(accept)) {
-//            Matcher m = acceptProfilePattern.matcher(accept);
-//            if (m.find()) {
-//                String profiles = m.group(1);
-//                if (profiles.toLowerCase(Locale.getDefault()).contains(Definitions.MEDIA_TYPE_IIIF_V3)) {
-//                    result = "3";
-//                } else {
-//                    result = "2";
-//                }
-//            }
-//        }
-//        return result;
-//    }
-//
-//    private boolean isAcceptHeaderOK(HttpServletRequest request) {
-//        String accept = request.getHeader("Accept");
-//        return (StringUtils.isBlank(accept)) ||
-//                (StringUtils.containsIgnoreCase(accept, "*/*")) ||
-//                (StringUtils.containsIgnoreCase(accept, MEDIA_TYPE_JSON)) ||
-//                (StringUtils.containsIgnoreCase(accept, MEDIA_TYPE_JSONLD));
-//    }
 
 }

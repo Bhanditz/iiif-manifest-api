@@ -22,6 +22,8 @@ import eu.europeana.iiif.service.exception.RecordNotFoundException;
 import eu.europeana.iiif.service.exception.RecordParseException;
 import eu.europeana.iiif.service.exception.RecordRetrieveException;
 import ioinformarics.oss.jackson.module.jsonld.JsonldModule;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.http.Header;
 import org.apache.http.HttpEntity;
 import org.apache.http.HttpStatus;
 import org.apache.http.client.methods.CloseableHttpResponse;
@@ -29,11 +31,13 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.client.methods.HttpHead;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
+import org.apache.http.message.BasicHeader;
 import org.apache.http.util.EntityUtils;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import org.springframework.stereotype.Service;
+import org.springframework.web.context.request.WebRequest;
 
 import java.io.IOException;
 import java.net.URL;
@@ -113,8 +117,17 @@ public class ManifestService {
      *      RecordNotFoundException if there was a 404,
      *      RecordRetrieveException on all other problems)
      */
-    public String getRecordJson(String recordId, String wsKey) throws IIIFException {
-        return getRecordJson(recordId, wsKey, null);
+    public RecordResponse getRecordJson(String recordId, String wsKey) throws IIIFException {
+        return getRecordJson(recordId, wsKey, null, null, null, null, null);
+    }
+
+    public RecordResponse getRecordJson(String recordId, String wsKey, URL recordApiUrl) throws IIIFException {
+        return getRecordJson(recordId, wsKey, recordApiUrl, null, null, null, null);
+    }
+
+    public RecordResponse getRecordJson(String recordId, String wsKey, URL recordApiUrl, String ifNoneMatch,
+                                        String ifMatch) throws IIIFException {
+        return getRecordJson(recordId, wsKey, recordApiUrl, ifNoneMatch, ifMatch, null, null);
     }
 
     /**
@@ -137,8 +150,11 @@ public class ManifestService {
             @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds", value = "30000"),
             @HystrixProperty(name = "fallback.enabled", value="false")
     })
-    public String getRecordJson(String recordId, String wsKey, URL recordApiUrl) throws IIIFException {
-        String result= null;
+    public RecordResponse getRecordJson(String recordId, String wsKey, URL recordApiUrl,
+                                        String ifNoneMatch, String ifMatch, String lastModified, String origin)
+            throws IIIFException {
+        RecordResponse recordResponse;
+        boolean isIfNoneMatchRequest = false;
 
         StringBuilder url;
         if (recordApiUrl == null) {
@@ -151,23 +167,52 @@ public class ManifestService {
         url.append(".json?wskey=");
         url.append(wsKey);
 
+        String recordUrl = url.toString();
+        HttpGet httpGet = new HttpGet(recordUrl);
+
+        if (StringUtils.isNotBlank(ifNoneMatch)){
+            isIfNoneMatchRequest = true;
+            httpGet.addHeader("If-None-Match", ifNoneMatch);
+        }
+
+        if (StringUtils.isNotBlank(ifMatch)){
+            httpGet.addHeader("If-Match", ifMatch);
+        }
+
+        if (StringUtils.isNotBlank(lastModified)){
+            httpGet.addHeader("If-Modified-Since", lastModified);
+        }
+
+        if (StringUtils.isNotBlank(origin)){
+            httpGet.addHeader("Origin", origin);
+        }
+
         try {
-            String recordUrl = url.toString();
-            try (CloseableHttpResponse response = httpClient.execute(new HttpGet(recordUrl))) {
+            try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
                 int responseCode = response.getStatusLine().getStatusCode();
                 LOG.debug("Record request: {}, status code = {}", recordId, responseCode);
                 if (responseCode == HttpStatus.SC_UNAUTHORIZED) {
                     throw new InvalidApiKeyException("API key is not valid");
                 } else if (responseCode == HttpStatus.SC_NOT_FOUND) {
-                    throw new RecordNotFoundException("Record with id '"+recordId+"' not found");
-                } else if (responseCode != HttpStatus.SC_OK) {
+                    throw new RecordNotFoundException("Record with id '" + recordId + "' not found");
+                } else if (responseCode != HttpStatus.SC_OK && // allow for HTTP 304 & 412
+                           responseCode != HttpStatus.SC_NOT_MODIFIED &&
+                           responseCode != HttpStatus.SC_PRECONDITION_FAILED) {
                     throw new RecordRetrieveException("Error retrieving record: "+response.getStatusLine().getReasonPhrase());
                 }
+                recordResponse = new RecordResponse(response, isIfNoneMatchRequest);
+
+//                recordResponse.setAllowHeader(response.getFirstHeader("Allow").getValue());
+//                recordResponse.setCacheControlHeader(response.getFirstHeader("Cache-Control").getValue());
+//                recordResponse.setAcAllowMethodsHeader(response.getFirstHeader("Access-Control-Allow-Methods").getValue());
+//                recordResponse.setAcAllowHeadersHeader(response.getFirstHeader("Access-Control-Allow-Headers").getValue());
+//                recordResponse.setAcExposeHeadersHeader(response.getFirstHeader("Access-Control-Expose-Headers").getValue());
+//                recordResponse.setAcMaxAgeHeader(response.getFirstHeader("Access-Control-Max-Age").getValue());
 
                 HttpEntity entity = response.getEntity();
                 if (entity != null) {
-                    result = EntityUtils.toString(entity);
-                    LOG.debug("Record request: {}, response = {}", recordId, result);
+                    recordResponse.setJson(EntityUtils.toString(entity));
+                    LOG.debug("Record request: {}, response = {}", recordId, recordResponse.getJson());
                     EntityUtils.consume(entity); // make sure entity is consumed fully so connection can be reused
                 } else {
                     LOG.warn("Request entity = null");
@@ -176,8 +221,7 @@ public class ManifestService {
         } catch (IOException e) {
             throw new RecordRetrieveException("Error retrieving record", e);
         }
-
-        return result;
+        return recordResponse;
     }
 
     /**
