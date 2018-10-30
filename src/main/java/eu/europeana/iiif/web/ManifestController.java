@@ -3,6 +3,7 @@ package eu.europeana.iiif.web;
 import eu.europeana.iiif.service.*;
 import eu.europeana.iiif.service.exception.IIIFException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.protocol.HTTP;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -106,7 +107,7 @@ public class ManifestController {
 
         // Evaluate the Record API's response and handle HTTP 304 & 412 statuses.
         // Note that in case an If-None-Match request results in a HTTP 304 response, the cache related headers are
-        // also included. In other HTTP 304 & 412 cases, only the HTTP status is returned.
+        // also included. In other HTTP 304 & 412 cases only the HTTP status is returned (with empty body)
         if (recordResponse.getHttpStatus() == HttpStatus.NOT_MODIFIED.value()){
             if (recordResponse.isIfNoneMatchRequest()){
                 return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
@@ -208,7 +209,8 @@ public class ManifestController {
                 return manifestService.getRecordJson(id, wskey, recordApi, ANY, null, reqIfModSince, reqOrigin);
             }
             matchingVersionETag = CacheUtils.doesAnyOfTheseMatch(reqIfNoneMatch, appVersion);
-            if (StringUtils.isBlank(matchingVersionETag)) {
+            // matchingVersionETag will be "x" if BASE64 won't decode
+            if (StringUtils.isBlank(matchingVersionETag) || StringUtils.equalsIgnoreCase(matchingVersionETag, "x")) {
                 return manifestService.getRecordJson(id, wskey, recordApi);
             } else {
                 return manifestService.getRecordJson(id, wskey, recordApi,
@@ -219,12 +221,12 @@ public class ManifestController {
                 return manifestService.getRecordJson(id, wskey, recordApi, null, ANY, reqIfModSince, reqOrigin);
             }
             matchingVersionETag = CacheUtils.doesAnyOfTheseMatch(reqIfMatch, appVersion);
-            if (StringUtils.isBlank(matchingVersionETag)) {
+            if (StringUtils.isNotBlank(matchingVersionETag) &&  // not empty if eTag contains matching version, delegate
+                !StringUtils.equalsIgnoreCase(matchingVersionETag, "x")) {
                 return manifestService.getRecordJson(id, wskey, recordApi, null,
                                                      matchingVersionETag, reqIfModSince, reqOrigin);
             } else {
-                // respond with HTTP 412
-                return new RecordResponse(412);
+                return new RecordResponse(412); // will be "x" if BASE64 won't decode
             }
         }
 

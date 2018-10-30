@@ -120,9 +120,13 @@ public class CacheUtils {
     private static String headerVersionMatcher(String header, String appVersion){
         if (StringUtils.isNoneBlank(header, appVersion)){
             for (String value : StringUtils.stripAll(StringUtils.split(header, ","))){
-                String[] decodedBase64ETag = decodeBase64ETag(spicAndSpan(value));
-                if (StringUtils.equalsIgnoreCase(decodedBase64ETag[1], appVersion)){
-                    return decodedBase64ETag[0];
+                try {
+                    String[] decodedBase64ETag = decodeBase64ETag(spicAndSpan(value));
+                    if (StringUtils.equalsIgnoreCase(decodedBase64ETag[1], appVersion)){
+                        return decodedBase64ETag[0];
+                    }
+                } catch (IllegalArgumentException e) {
+                    return "x";
                 }
             }
         }
