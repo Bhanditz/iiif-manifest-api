@@ -77,8 +77,7 @@ public class ManifestController {
             @RequestParam(value = "recordApi", required = false) URL recordApi,
             @RequestParam(value = "fullText", required = false, defaultValue = "true") Boolean addFullText,
             @RequestParam(value = "fullTextApi", required = false) URL fullTextApi,
-            HttpServletRequest request,
-            HttpServletResponse response) throws IIIFException {
+            HttpServletRequest request) throws IIIFException {
         // TODO integrate with apikey service?? (or leave it like this?)
 
         RecordResponse recordResponse;
@@ -110,10 +109,10 @@ public class ManifestController {
         // also included. In other HTTP 304 & 412 cases only the HTTP status is returned (with empty body)
         if (recordResponse.getHttpStatus() == HttpStatus.NOT_MODIFIED.value()){
             if (recordResponse.isIfNoneMatchRequest()){
-                return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
-            } else {
                 return new ResponseEntity<>(CacheUtils.generateCacheHeaders(recordResponse, appVersion, NOCACHE, ACCEPT),
                                             HttpStatus.NOT_MODIFIED);
+            } else {
+                return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
             }
         } else if (recordResponse.getHttpStatus() == HttpStatus.PRECONDITION_FAILED.value()){
             return new ResponseEntity<>(HttpStatus.PRECONDITION_FAILED);
@@ -185,15 +184,6 @@ public class ManifestController {
                (StringUtils.containsIgnoreCase(accept, MEDIA_TYPE_JSONLD));
     }
 
-//    @Deprecated
-//    private String generateETag(String recordId, ZonedDateTime recordUpdated, String iiifVersion) {
-//        StringBuilder hashData = new StringBuilder(recordId);
-//        hashData.append(recordUpdated.toString());
-//        hashData.append(appVersion);
-//        hashData.append(iiifVersion);
-//        return CacheUtils.generateSHA256ETag(hashData.toString(), true);
-//    }
-
     private RecordResponse processCacheHeaders(HttpServletRequest request,
                                                     String id, String wskey, URL recordApi) throws IIIFException {
 
@@ -232,14 +222,6 @@ public class ManifestController {
 
         // in all other cases:
         return manifestService.getRecordJson(id, wskey, recordApi, null, null, reqIfModSince, reqOrigin);
-
-//            CacheUtils.addDefaultHeaders(recordResponse, "TODO ETAG", responseLastMod, ALLOWED, NOCACHE);
-//            if (StringUtils.isNotBlank(reqOrigin)){
-//                CacheUtils.addCorsHeaders(recordResponse, ALLOWED, ALLOWHEADERS, EXPOSEHEADERS, MAXAGE);
-//            }
-//            recordResponse.setHttpStatus(HttpServletResponse.SC_NOT_MODIFIED);
-            //return null;
     }
-
 
 }
