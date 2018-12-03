@@ -29,7 +29,6 @@ public class RecordResponse {
     private int         httpStatus;
     private String      lastModifiedHeader;
     private String      eTagHeader;
-    private String      allowHeader;
     private String      cacheControlHeader;
     private String      acAllowMethodsHeader;
     private String      acAllowHeadersHeader;
@@ -109,72 +108,32 @@ public class RecordResponse {
         return httpStatus;
     }
 
-    public void setHttpStatus(int httpStatus) {
-        this.httpStatus = httpStatus;
-    }
-
     public String getLastModifiedHeader() {
         return lastModifiedHeader;
-    }
-
-    public void setLastModifiedHeader(String lastModifiedHeader) {
-        this.lastModifiedHeader = lastModifiedHeader;
     }
 
     public String getETagHeader() {
         return eTagHeader;
     }
 
-    public void setETagHeader(String eTagHeader) {
-        this.eTagHeader = eTagHeader;
-    }
-
-    public String getAllowHeader() {
-        return allowHeader;
-    }
-
-    public void setAllowHeader(String allowHeader) {
-        this.allowHeader = allowHeader;
-    }
-
     public String getCacheControlHeader() {
         return cacheControlHeader;
-    }
-
-    public void setCacheControlHeader(String cacheControlHeader) {
-        this.cacheControlHeader = cacheControlHeader;
     }
 
     public String getAcAllowMethodsHeader() {
         return acAllowMethodsHeader;
     }
 
-    public void setAcAllowMethodsHeader(String acAllowMethodsHeader) {
-        this.acAllowMethodsHeader = acAllowMethodsHeader;
-    }
-
     public String getAcAllowHeadersHeader() {
         return acAllowHeadersHeader;
-    }
-
-    public void setAcAllowHeadersHeader(String acAllowHeadersHeader) {
-        this.acAllowHeadersHeader = acAllowHeadersHeader;
     }
 
     public String getAcExposeHeadersHeader() {
         return acExposeHeadersHeader;
     }
 
-    public void setAcExposeHeadersHeader(String acExposeHeadersHeader) {
-        this.acExposeHeadersHeader = acExposeHeadersHeader;
-    }
-
     public String getAcMaxAgeHeader() {
         return acMaxAgeHeader;
-    }
-
-    public void setAcMaxAgeHeader(String acMaxAgeHeader) {
-        this.acMaxAgeHeader = acMaxAgeHeader;
     }
 
     public boolean isIfNoneMatchRequest() {

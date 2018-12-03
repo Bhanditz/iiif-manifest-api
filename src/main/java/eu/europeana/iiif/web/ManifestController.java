@@ -3,7 +3,6 @@ package eu.europeana.iiif.web;
 import eu.europeana.iiif.service.*;
 import eu.europeana.iiif.service.exception.IIIFException;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.protocol.HTTP;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -12,14 +11,11 @@ import org.springframework.web.bind.annotation.*;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.net.URL;
-import java.time.ZonedDateTime;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import static eu.europeana.iiif.model.Definitions.*;
-import static eu.europeana.iiif.service.CacheUtils.rePackage;
-import static eu.europeana.iiif.service.CacheUtils.spicAndSpan;
 
 /**
  * Rest controller that handles manifest requests
@@ -36,22 +32,16 @@ public class ManifestController {
     private static final String IFNONEMATCH     = "If-None-Match";
     private static final String IFMATCH         = "If-Match";
     private static final String IFMODIFIEDSINCE = "If-Modified-Since";
-    private static final String LASTMODIFIED    = "Last-Modified";
-    private static final String ETAG            = "ETag";
-    private static final String ALLOWED         = "GET, HEAD";
-    private static final String ALLOWHEADERS    = "If-Match, If-None-Match, If-Modified-Since";
-    private static final String EXPOSEHEADERS   = "Allow, ETag, Last-Modified, Link";
     private static final String ORIGIN          = "Origin";
     private static final String NOCACHE         = "no-cache";
-    private static final String MAXAGE          = "600";
     private static final String ANY             = "*";
 
     private ManifestService manifestService;
-
-    String appVersion;
+    private String appVersion;
 
     public ManifestController(ManifestService manifestService) {
         this.manifestService = manifestService;
+        this.appVersion = manifestService.getSettings().getAppVersion();
     }
 
     /**
@@ -191,7 +181,7 @@ public class ManifestController {
         String reqIfMatch       = request.getHeader(IFMATCH);
         String reqIfModSince    = request.getHeader(IFMODIFIEDSINCE);
         String reqOrigin        = request.getHeader(ORIGIN);
-        appVersion              = manifestService.getSettings().getAppVersion();
+
         String matchingVersionETag;
 
         if (StringUtils.isNotBlank(reqIfNoneMatch)){

@@ -1,12 +1,9 @@
 package eu.europeana.iiif.service;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
-import java.nio.charset.StandardCharsets;
+
 import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 
 /**
@@ -16,13 +13,11 @@ import java.util.Base64;
  */
 public class CacheUtils {
 
-    private static final Logger LOG = LogManager.getLogger(CacheUtils.class);
-
     private CacheUtils() {
         // empty constructor to prevent initialization
     }
 
-    public static String encodeBase64ETag(String originalEtag, String manifestApiVersion, String separator, boolean weakETag) {
+    private static String encodeBase64ETag(String originalEtag, String manifestApiVersion, String separator, boolean weakETag) {
         String contents = originalEtag + separator + manifestApiVersion;
         String newETag = "\"" + Base64.getEncoder().encodeToString(contents.getBytes()) + "\"";
         if (weakETag) {
@@ -38,7 +33,7 @@ public class CacheUtils {
      * @param eTag retrieved from the request's If-None-Match or If-Match header
      * @return String[2] containing [0] eTag and [1] Manifest API version
      */
-    public static String[] decodeBase64ETag(String eTag){
+    private static String[] decodeBase64ETag(String eTag){
         String decoded = new String(Base64.getDecoder().decode(eTag));
         String separator = " ";
         if (StringUtils.containsAny(decoded, "|")){
@@ -127,35 +122,6 @@ public class CacheUtils {
 
     public static String spicAndSpan(String header){
         return StringUtils.remove(StringUtils.stripStart(header, "W/"), "\"");
-    }
-
-    /**
-     * Calculates SHA256 hash of a particular data string
-     * @param  data String of data on which the hash is based
-     * @return SHA256Hash   String
-     */
-    private static String getSHA256Hash(String data){
-        MessageDigest digest = null;
-        try {
-            digest = MessageDigest.getInstance("SHA-256");
-            byte[] encodedhash = digest.digest(data.getBytes(StandardCharsets.UTF_8));
-            return bytesToHex(encodedhash);
-        } catch (NoSuchAlgorithmException e) {
-            LogManager.getLogger(CacheUtils.class).error("Error generating SHA-265 hash from record timestamp_update", e);
-        }
-        return null;
-    }
-
-    private static String bytesToHex(byte[] hash) {
-        StringBuilder hexString = new StringBuilder();
-        for (byte bt : hash) {
-            String hex = Integer.toHexString(0xff & bt);
-            if (hex.length() == 1) {
-                hexString.append('0');
-            }
-            hexString.append(hex);
-        }
-        return hexString.toString();
     }
 
     public static String rePackage(String eTag){
