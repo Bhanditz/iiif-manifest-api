@@ -118,11 +118,6 @@ public class ManifestService {
         return getRecordJson(recordId, wsKey, recordApiUrl, null, null, null, null);
     }
 
-    public RecordResponse getRecordJson(String recordId, String wsKey, URL recordApiUrl, String ifNoneMatch,
-                                        String ifMatch) throws IIIFException {
-        return getRecordJson(recordId, wsKey, recordApiUrl, ifNoneMatch, ifMatch, null, null);
-    }
-
     /**
      * Return record information in Json format from an instance of the Record API
      *
@@ -333,7 +328,10 @@ public class ManifestService {
 
                 // we don't want to check for all images if they are a fulltext because that takes too long
                 // instead we check if the edmIsShownBy is a fulltext and if so assume all images are fulltexts
-                if (s.getCanvases() != null && s.getIsShownBy() != null && existsFullText(s.getIsShownBy())) {
+                // note that the edmIsShownBy has to be a Europeana address!
+                if (s.getCanvases() != null && s.getIsShownBy() != null &&
+                        ValidateUtils.isEuropeanaUrl(s.getIsShownBy()) &&
+                        existsFullText(s.getIsShownBy())) {
                     // add fulllink to all items
                     for (eu.europeana.iiif.model.v2.Canvas c : s.getCanvases()) {
                         String fullTextUrl = generateFullTextUrl(manifest.getEuropeanaId(),
@@ -344,6 +342,8 @@ public class ManifestService {
                         ft[0] = new FullText(fullTextUrl);
                         c.setOtherContent(ft);
                     }
+                } else {
+                    LOG.debug("Skipping fulltext check");
                 }
 
             }
@@ -363,7 +363,10 @@ public class ManifestService {
 
                 // we don't want to check for all images if they are a fulltext because that takes too long
                 // instead we check if the edmIsShownBy is a fulltext and if so assume all images are fulltexts
-                if (s.getItems() != null && s.getIsShownBy() != null && existsFullText(s.getIsShownBy())) {
+                // note that the edmIsShownBy has to be a Europeana address!
+                if (s.getItems() != null && s.getIsShownBy() != null &&
+                        ValidateUtils.isEuropeanaUrl(s.getIsShownBy()) &&
+                        existsFullText(s.getIsShownBy())) {
                     // add fulllink to all items
                     for (eu.europeana.iiif.model.v3.Canvas c : s.getItems()) {
                         String fullTextUrl = generateFullTextUrl(manifest.getEuropeanaId(),
@@ -371,6 +374,8 @@ public class ManifestService {
                                 fullTextApi);
                         addFullTextAnnotationPageV3(c, fullTextUrl);
                     }
+                } else {
+                    LOG.debug("Skipping fulltext check");
                 }
 
             }
