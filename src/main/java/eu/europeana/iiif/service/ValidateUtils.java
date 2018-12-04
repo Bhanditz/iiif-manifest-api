@@ -31,7 +31,7 @@ public final class ValidateUtils {
      */
     public static final boolean validateRecordIdFormat(String europeanaId) throws IllegalArgumentException {
         if (!RECORD_ID.matcher(europeanaId).matches()) {
-            throw new IllegalArgumentException("Illegal recordId "+ europeanaId);
+            throw new IllegalArgumentException("Illegal recordId " + europeanaId);
         }
         return true;
     }
@@ -45,7 +45,7 @@ public final class ValidateUtils {
      */
     public static final boolean validateWskeyFormat(String wsKey) throws IllegalArgumentException {
         if (!WSKEY.matcher(wsKey).matches()) {
-            throw new IllegalArgumentException("Illegal API key "+ wsKey);
+            throw new IllegalArgumentException("Illegal API key " + wsKey);
         }
         return true;
     }
@@ -58,7 +58,7 @@ public final class ValidateUtils {
      */
     public static final boolean validateApiUrlFormat(URL apiUrl) throws IllegalArgumentException {
         if (!API_URL.matcher(apiUrl.toString()).matches()) {
-            throw new IllegalArgumentException("Illegal API url "+ apiUrl);
+            throw new IllegalArgumentException("Illegal API url " + apiUrl);
         }
         return true;
     }

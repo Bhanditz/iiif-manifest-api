@@ -15,12 +15,8 @@ import eu.europeana.iiif.model.v2.FullText;
 import eu.europeana.iiif.model.v2.ManifestV2;
 import eu.europeana.iiif.model.v3.AnnotationPage;
 import eu.europeana.iiif.model.v3.ManifestV3;
-import eu.europeana.iiif.service.exception.FullTextCheckException;
-import eu.europeana.iiif.service.exception.IIIFException;
-import eu.europeana.iiif.service.exception.InvalidApiKeyException;
-import eu.europeana.iiif.service.exception.RecordNotFoundException;
-import eu.europeana.iiif.service.exception.RecordParseException;
-import eu.europeana.iiif.service.exception.RecordRetrieveException;
+import eu.europeana.iiif.service.exception.*;
+import eu.europeana.iiif.service.exception.IllegalArgumentException;
 import ioinformarics.oss.jackson.module.jsonld.JsonldModule;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
@@ -192,10 +188,12 @@ public class ManifestService {
                     throw new InvalidApiKeyException("API key is not valid");
                 } else if (responseCode == HttpStatus.SC_NOT_FOUND) {
                     throw new RecordNotFoundException("Record with id '" + recordId + "' not found");
+                } else if (responseCode == HttpStatus.SC_BAD_REQUEST) {
+                    throw new IllegalArgumentException("Illegal argument passed to Record API: " + response.getStatusLine().getReasonPhrase());
                 } else if (responseCode != HttpStatus.SC_OK && // allow for HTTP 304 & 412
                            responseCode != HttpStatus.SC_NOT_MODIFIED &&
                            responseCode != HttpStatus.SC_PRECONDITION_FAILED) {
-                    throw new RecordRetrieveException("Error retrieving record: "+response.getStatusLine().getReasonPhrase());
+                    throw new RecordRetrieveException("Error retrieving record: " + response.getStatusLine().getReasonPhrase());
                 }
                 recordResponse = new RecordResponse(response, isIfNoneMatchRequest);
 
