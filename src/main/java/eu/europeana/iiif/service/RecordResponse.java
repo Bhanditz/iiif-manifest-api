@@ -37,12 +37,6 @@ public class RecordResponse {
     private boolean     isIfNoneMatchRequest = false;
 
 
-    public RecordResponse(int httpStatus, String lastModifiedHeader, String eTagHeader) {
-        this.httpStatus = httpStatus;
-        this.lastModifiedHeader = lastModifiedHeader;
-        this.eTagHeader = eTagHeader;
-    }
-
     public RecordResponse(CloseableHttpResponse response, boolean isIfNoneMatchRequest) {
         this.isIfNoneMatchRequest = isIfNoneMatchRequest;
         this.httpStatus = response.getStatusLine().getStatusCode();
@@ -108,35 +102,46 @@ public class RecordResponse {
         return httpStatus;
     }
 
-    public String getLastModifiedHeader() {
+    public void setHttpStatus(int httpStatus) {
+        this.httpStatus = httpStatus;
+    }
+
+    String getLastModifiedHeader() {
         return lastModifiedHeader;
     }
 
-    public String getETagHeader() {
+    public void setLastModifiedHeader(String lastModifiedHeader) {
+        this.lastModifiedHeader = lastModifiedHeader;
+    }
+
+    String getETagHeader() {
         return eTagHeader;
     }
 
-    public String getCacheControlHeader() {
-        return cacheControlHeader;
+    public void setETagHeader(String eTagHeader) {
+        this.eTagHeader = eTagHeader;
     }
 
-    public String getAcAllowMethodsHeader() {
+    String getAcAllowMethodsHeader() {
         return acAllowMethodsHeader;
     }
 
-    public String getAcAllowHeadersHeader() {
+    String getAcAllowHeadersHeader() {
         return acAllowHeadersHeader;
     }
 
-    public String getAcExposeHeadersHeader() {
+    String getAcExposeHeadersHeader() {
         return acExposeHeadersHeader;
     }
 
-    public String getAcMaxAgeHeader() {
+    String getAcMaxAgeHeader() {
         return acMaxAgeHeader;
     }
 
-    public boolean isIfNoneMatchRequest() {
-        return isIfNoneMatchRequest;
+    public void setCorsHeaders(String allowMethods, String allowHeaders, String exposeHeaders, String maxAge) {
+        this.acAllowMethodsHeader = allowMethods;
+        this.acAllowHeadersHeader = allowHeaders;
+        this.acExposeHeadersHeader = exposeHeaders;
+        this.acMaxAgeHeader = maxAge;
     }
 }

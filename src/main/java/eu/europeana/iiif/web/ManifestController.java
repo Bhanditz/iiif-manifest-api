@@ -37,11 +37,9 @@ public class ManifestController {
     private static final String ANY             = "*";
 
     private ManifestService manifestService;
-    private String appVersion;
 
     public ManifestController(ManifestService manifestService) {
         this.manifestService = manifestService;
-        this.appVersion = manifestService.getSettings().getAppVersion();
     }
 
     /**
@@ -75,6 +73,8 @@ public class ManifestController {
         ValidateUtils.validateWskeyFormat(wskey);
         ValidateUtils.validateRecordIdFormat(id);
 
+        String appVersion = manifestService.getSettings().getAppVersion();
+
         if (recordApi != null) {
             ValidateUtils.validateApiUrlFormat(recordApi);
         }
@@ -92,18 +92,18 @@ public class ManifestController {
 
         // Evaluates the Cache headers and send the appropriate request to the Record API. The Record API's response
         // is contained within the RecordResponse object
-        recordResponse = processCacheHeaders(request, id, wskey, recordApi);
+        recordResponse = processCacheHeaders(request, id, wskey, recordApi, appVersion);
 
         // Evaluate the Record API's response and handle HTTP 304 & 412 statuses.
         // Note that in case an If-None-Match request results in a HTTP 304 response, the cache related headers are
         // also included. In other HTTP 304 & 412 cases only the HTTP status is returned (with empty body)
         if (recordResponse.getHttpStatus() == HttpStatus.NOT_MODIFIED.value()){
-            if (recordResponse.isIfNoneMatchRequest()){
+//            if (recordResponse.isIfNoneMatchRequest()){
                 return new ResponseEntity<>(CacheUtils.generateCacheHeaders(recordResponse, appVersion, NOCACHE, ACCEPT),
                                             HttpStatus.NOT_MODIFIED);
-            } else {
-                return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
-            }
+//            } else {
+//                return new ResponseEntity<>(HttpStatus.NOT_MODIFIED);
+//            }
         } else if (recordResponse.getHttpStatus() == HttpStatus.PRECONDITION_FAILED.value()){
             return new ResponseEntity<>(HttpStatus.PRECONDITION_FAILED);
         } else if (recordResponse.getHttpStatus() != HttpStatus.OK.value()){
@@ -174,8 +174,8 @@ public class ManifestController {
                (StringUtils.containsIgnoreCase(accept, MEDIA_TYPE_JSONLD));
     }
 
-    private RecordResponse processCacheHeaders(HttpServletRequest request,
-                                                    String id, String wskey, URL recordApi) throws IIIFException {
+    private RecordResponse processCacheHeaders(HttpServletRequest request, String id, String wskey,
+                                               URL recordApi, String appVersion) throws IIIFException {
 
         String reqIfNoneMatch   = request.getHeader(IFNONEMATCH);
         String reqIfMatch       = request.getHeader(IFMATCH);
@@ -197,7 +197,7 @@ public class ManifestController {
                                                      matchingVersionETag, null, reqIfModSince, reqOrigin);
             }
         } else if (StringUtils.isNotBlank(reqIfMatch)){
-            if (StringUtils.equals(CacheUtils.spicAndSpan(reqIfNoneMatch), ANY)){
+            if (StringUtils.equals(CacheUtils.spicAndSpan(reqIfMatch), ANY)){
                 return manifestService.getRecordJson(id, wskey, recordApi, null, ANY, reqIfModSince, reqOrigin);
             }
             matchingVersionETag = CacheUtils.doesAnyOfTheseMatch(reqIfMatch, appVersion);
