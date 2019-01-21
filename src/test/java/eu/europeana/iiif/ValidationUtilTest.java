@@ -1,7 +1,7 @@
 package eu.europeana.iiif;
 
 import eu.europeana.iiif.service.ValidateUtils;
-import eu.europeana.iiif.service.exception.IllegalArgumentException;
+import eu.europeana.iiif.service.exception.InvalidArgumentException;
 import org.junit.Test;
 
 import java.net.MalformedURLException;
@@ -17,37 +17,37 @@ import static org.junit.Assert.assertTrue;
 public class ValidationUtilTest {
 
     @Test
-    public void testRecordId() throws IllegalArgumentException {
+    public void testRecordId() throws InvalidArgumentException {
         assertTrue(ValidateUtils.validateRecordIdFormat("/2023006/24062A51_priref_16913"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testRecordIdFalse() throws IllegalArgumentException {
+    @Test(expected = InvalidArgumentException.class)
+    public void testRecordIdFalse() throws InvalidArgumentException {
         ValidateUtils.validateRecordIdFormat("/2023006/24062A51 priref_16913");
     }
 
     @Test
-    public void testApiKey() throws IllegalArgumentException {
+    public void testApiKey() throws InvalidArgumentException {
         assertTrue(ValidateUtils.validateWskeyFormat("1aSd456"));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testApiKeyFalse() throws IllegalArgumentException {
+    @Test(expected = InvalidArgumentException.class)
+    public void testApiKeyFalse() throws InvalidArgumentException {
         assertTrue(ValidateUtils.validateWskeyFormat("1a@d456"));
     }
 
     @Test
-    public void testRecordApiUrl() throws IllegalArgumentException, MalformedURLException {
+    public void testRecordApiUrl() throws InvalidArgumentException, MalformedURLException {
         assertTrue(ValidateUtils.validateApiUrlFormat(new URL("https://search-api-test.eanadev.org")));
     }
 
     @Test
-    public void testFullTextApiUrl() throws IllegalArgumentException, MalformedURLException {
+    public void testFullTextApiUrl() throws InvalidArgumentException, MalformedURLException {
         assertTrue(ValidateUtils.validateApiUrlFormat(new URL("https://fulltext-api-test.eanadev.org")));
     }
 
-    @Test(expected = IllegalArgumentException.class)
-    public void testRecordApiUrlFalse() throws IllegalArgumentException, MalformedURLException {
+    @Test(expected = InvalidArgumentException.class)
+    public void testRecordApiUrlFalse() throws InvalidArgumentException, MalformedURLException {
         assertTrue(ValidateUtils.validateApiUrlFormat(new URL("https://search-api-test.google.nl")));
     }
 

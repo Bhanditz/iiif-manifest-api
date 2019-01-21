@@ -29,7 +29,7 @@ public class WebResourceSorterTest {
      * @param webResources
      * @return true if the webresource with wrId1 is found after the webresource with wrId2 in the webResources array
      */
-    public boolean isAfter(List<WebResource> webResources, String wrId1, String wrId2) {
+    public boolean isAfter(List<WebResource> webResources, String wrId1, String wrId2) throws DataInconsistentException {
         int pos1 = -1;
         int pos2 = -1;
         for (int i = 0; i < webResources.size() && (pos1 == -1 || pos2 == -1); i++) {
@@ -43,10 +43,10 @@ public class WebResourceSorterTest {
             //LogManager.getLogger(WebResourceSorterTest.class).debug("i = {}, pos wrId1 {}, wrId2 {}, result = {}", i, wrId1, wrId2, (pos1 > pos2));
         }
         if (pos1 == -1) {
-            throw new IllegalArgumentException("Webresource "+wrId1+" was not found!");
+            throw new DataInconsistentException("Webresource "+wrId1+" was not found!");
         }
         if (pos2 == -1) {
-            throw new IllegalArgumentException("Webresource "+wrId2+" was not found!");
+            throw new DataInconsistentException("Webresource "+wrId2+" was not found!");
         }
         return pos1 > pos2;
     }

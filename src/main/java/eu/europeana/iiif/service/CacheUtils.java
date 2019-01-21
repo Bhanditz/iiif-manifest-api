@@ -1,8 +1,9 @@
 package eu.europeana.iiif.service;
 
+import eu.europeana.iiif.service.exception.InvalidArgumentException;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.http.HttpHeaders;
-import eu.europeana.iiif.service.exception.IllegalArgumentException;
+
 import java.util.Base64;
 
 /**
@@ -32,14 +33,18 @@ public class CacheUtils {
      * @param eTag retrieved from the request's If-None-Match or If-Match header
      * @return String[2] containing [0] eTag and [1] Manifest API version
      */
-    private static String[] decodeBase64ETag(String eTag) throws IllegalArgumentException{
-        String decoded = new String(Base64.getDecoder().decode(eTag));
-        for (String separator : new String[]{"|", ",", " "}){
-            if (StringUtils.containsAny(decoded, separator)){
-                return StringUtils.splitByWholeSeparator(decoded, separator);
+    private static String[] decodeBase64ETag(String eTag) throws InvalidArgumentException {
+        try{
+            String decoded = new String(Base64.getDecoder().decode(eTag));
+            for (String separator : new String[]{"|", ",", " "}){
+                if (StringUtils.containsAny(decoded, separator)){
+                    return StringUtils.splitByWholeSeparator(decoded, separator);
+                }
             }
+        } catch (IllegalArgumentException e) {
+            throw new InvalidArgumentException("Could not decode malformed ETag", e);
         }
-        throw new IllegalArgumentException("no valid separator character found in ETag");
+        throw new InvalidArgumentException("no valid separator character found in ETag");
     }
 
     /**
@@ -110,7 +115,7 @@ public class CacheUtils {
                     if (StringUtils.equalsIgnoreCase(decodedBase64ETag[1], appVersion)){
                         return decodedBase64ETag[0];
                     }
-                } catch (IllegalArgumentException e ) {
+                } catch (InvalidArgumentException e ) {
                     return "x";
                 }
             }

@@ -16,7 +16,7 @@ import eu.europeana.iiif.model.v2.ManifestV2;
 import eu.europeana.iiif.model.v3.AnnotationPage;
 import eu.europeana.iiif.model.v3.ManifestV3;
 import eu.europeana.iiif.service.exception.*;
-import eu.europeana.iiif.service.exception.IllegalArgumentException;
+import eu.europeana.iiif.service.exception.InvalidArgumentException;
 import ioinformarics.oss.jackson.module.jsonld.JsonldModule;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpEntity;
@@ -105,15 +105,37 @@ public class ManifestService {
      *
      * @return record information in json format
      * @throws IIIFException (
-     *      IllegalArgumentException if a parameter has an illegal format,
+     *      InvalidArgumentException if a parameter has an illegal format,
      *      InvalidApiKeyException if the provide key is not valid,
      *      RecordNotFoundException if there was a 404,
      *      RecordRetrieveException on all other problems)
      */
+    @HystrixCommand(ignoreExceptions = {InvalidApiKeyException.class, RecordNotFoundException.class}, commandProperties = {
+            @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds", value = "30000"),
+            @HystrixProperty(name = "fallback.enabled", value="false")
+    })
     public RecordResponse getRecordJson(String recordId, String wsKey) throws IIIFException {
         return getRecordJson(recordId, wsKey, null, null, null, null, null);
     }
 
+    /**
+     * Return record information in Json format from the default configured Record API
+     *
+     * @param recordId Europeana record id in the form of "/datasetid/recordid" (so with leading slash and without trailing slash)
+     * @param wsKey api key to send to record API
+     * @param recordApiUrl if not null we will use the provided URL as the address of the Record API instead of the default configured address
+     *
+     * @return record information in json format
+     * @throws IIIFException (
+     *      InvalidArgumentException if a parameter has an illegal format,
+     *      InvalidApiKeyException if the provide key is not valid,
+     *      RecordNotFoundException if there was a 404,
+     *      RecordRetrieveException on all other problems)
+     */
+    @HystrixCommand(ignoreExceptions = {InvalidApiKeyException.class, RecordNotFoundException.class}, commandProperties = {
+            @HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds", value = "30000"),
+            @HystrixProperty(name = "fallback.enabled", value="false")
+    })
     public RecordResponse getRecordJson(String recordId, String wsKey, URL recordApiUrl) throws IIIFException {
         return getRecordJson(recordId, wsKey, recordApiUrl, null, null, null, null);
     }
@@ -124,10 +146,10 @@ public class ManifestService {
      * @param recordId Europeana record id in the form of "/datasetid/recordid" (so with leading slash and without trailing slash)
      * @param wsKey api key to send to record API
      * @param recordApiUrl if not null we will use the provided URL as the address of the Record API instead of the default configured address
-     *f
+     *
      * @return record information in json format
      * @throws IIIFException (
-     *      IllegalArgumentException if a parameter has an illegal format,
+     *      InvalidArgumentException if a parameter has an illegal format,
      *      InvalidApiKeyException if the provide key is not valid,
      *      RecordNotFoundException if there was a 404,
      *      RecordRetrieveException on all other problems)
@@ -184,7 +206,7 @@ public class ManifestService {
                 } else if (responseCode == HttpStatus.SC_NOT_FOUND) {
                     throw new RecordNotFoundException("Record with id '" + recordId + "' not found");
                 } else if (responseCode == HttpStatus.SC_BAD_REQUEST) {
-                    throw new IllegalArgumentException("Illegal argument passed to Record API: " + response.getStatusLine().getReasonPhrase());
+                    throw new InvalidArgumentException("Illegal argument passed to Record API: " + response.getStatusLine().getReasonPhrase());
                 } else if (responseCode != HttpStatus.SC_OK && // allow for HTTP 304 & 412
                            responseCode != HttpStatus.SC_NOT_MODIFIED &&
                            responseCode != HttpStatus.SC_PRECONDITION_FAILED) {

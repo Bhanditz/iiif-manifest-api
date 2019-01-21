@@ -9,13 +9,13 @@ import org.springframework.web.bind.annotation.ResponseStatus;
  * Created on 09-07-2018
  */
 @ResponseStatus(HttpStatus.BAD_REQUEST)
-public class IllegalArgumentException extends IIIFException {
+public class InvalidArgumentException extends IIIFException {
 
-    public IllegalArgumentException(String msg, Throwable t) {
+    public InvalidArgumentException(String msg, Throwable t) {
         super(msg, t);
     }
 
-    public IllegalArgumentException(String msg) {
+    public InvalidArgumentException(String msg) {
         super(msg);
     }
 
