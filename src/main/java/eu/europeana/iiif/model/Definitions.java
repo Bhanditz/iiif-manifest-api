@@ -45,14 +45,14 @@ public final class Definitions {
     public static final String DATASET_ID_BASE_URL = "https://www.europeana.eu/api/v2/record";
 
     /**
-     * Media type for json-ld
-     */
-    public static final String MEDIA_TYPE_JSONLD = "application/ld+json";
-
-    /**
      * Media type for json
      */
     public static final String MEDIA_TYPE_JSON = "application/json";
+
+    /**
+     * Media type for json-ld
+     */
+    public static final String MEDIA_TYPE_JSONLD = "application/ld+json";
 
     /**
      * Media type for IIIF version 2

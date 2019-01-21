@@ -3,6 +3,8 @@ package eu.europeana.iiif.web;
 import eu.europeana.iiif.service.*;
 import eu.europeana.iiif.service.exception.IIIFException;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -25,6 +27,8 @@ import static eu.europeana.iiif.model.Definitions.*;
  */
 @RestController
 public class ManifestController {
+
+    private static final Logger LOG = LogManager.getLogger(ManifestController.class);
 
     /* for parsing accept headers */
     private static final Pattern acceptProfilePattern = Pattern.compile("profile=\"(.*?)\"");

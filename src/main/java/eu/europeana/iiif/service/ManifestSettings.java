@@ -45,7 +45,6 @@ public class ManifestSettings {
     @Value("${canvas.width}")
     private Integer canvasWidth;
 
-
     @Autowired
     private Environment environment;
 
