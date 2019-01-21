@@ -101,6 +101,7 @@ public class ManifestController {
         recordResponse = processCacheHeaders(request, id, wskey, recordApi, appVersion);
 
         LOG.warn("Rec API status: " + recordResponse.getHttpStatus());
+        System.err.println("Rec API status: " + recordResponse.getHttpStatus());
 
         // Evaluate the Record API's response and handle HTTP 304 & 412 statuses.
         // Note that in case an If-None-Match request results in a HTTP 304 response, the cache related headers are
