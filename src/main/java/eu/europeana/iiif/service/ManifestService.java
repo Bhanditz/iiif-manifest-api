@@ -167,6 +167,7 @@ public class ManifestService {
         LOG.warn("record id: " + recordId + " \nURL: " + recordApiUrl + " \nIf-None-Match: " + ifNoneMatch +
                  "\nIf-Match: " + ifMatch + "\nlast-Modified: " + lastModified + "\norigin: " + origin);
 
+
         RecordResponse recordResponse;
         boolean isIfNoneMatchRequest = false;
 

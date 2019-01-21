@@ -72,6 +72,8 @@ public class ManifestController {
             HttpServletRequest request) throws IIIFException {
         // TODO integrate with apikey service?? (or leave it like this?)
 
+        LOG.warn("collectionID: " + collectionId + "\nrecordId: " + recordId);
+
         RecordResponse recordResponse;
         String id = "/" + collectionId + "/" + recordId;
         ValidateUtils.validateWskeyFormat(wskey);
@@ -98,10 +100,13 @@ public class ManifestController {
         // is contained within the RecordResponse object
         recordResponse = processCacheHeaders(request, id, wskey, recordApi, appVersion);
 
+        LOG.warn("Rec API status: " + recordResponse.getHttpStatus());
+
         // Evaluate the Record API's response and handle HTTP 304 & 412 statuses.
         // Note that in case an If-None-Match request results in a HTTP 304 response, the cache related headers are
         // also included. In other HTTP 304 & 412 cases only the HTTP status is returned (with empty body)
         if (recordResponse.getHttpStatus() == HttpStatus.NOT_MODIFIED.value()){
+
 //            if (recordResponse.isIfNoneMatchRequest()){
                 return new ResponseEntity<>(CacheUtils.generateCacheHeaders(recordResponse, appVersion, NOCACHE, ACCEPT),
                                             HttpStatus.NOT_MODIFIED);
