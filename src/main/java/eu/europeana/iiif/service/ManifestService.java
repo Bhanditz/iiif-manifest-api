@@ -163,6 +163,10 @@ public class ManifestService {
     public RecordResponse getRecordJson(String recordId, String wsKey, URL recordApiUrl,
                                         String ifNoneMatch, String ifMatch, String lastModified, String origin)
             throws IIIFException {
+
+        LOG.warn("record id: " + recordId + " \nURL: " + recordApiUrl + " \nIf-None-Match: " + ifNoneMatch +
+                 "\nIf-Match: " + ifMatch + "\nlast-Modified: " + lastModified + "\norigin: " + origin);
+
         RecordResponse recordResponse;
         boolean isIfNoneMatchRequest = false;
 
@@ -200,7 +204,8 @@ public class ManifestService {
         try {
             try (CloseableHttpResponse response = httpClient.execute(httpGet)) {
                 int responseCode = response.getStatusLine().getStatusCode();
-                LOG.debug("Record request: {}, status code = {}", recordId, responseCode);
+//                LOG.debug("Record request: {}, status code = {}", recordId, responseCode);
+                LOG.warn("Record request: {}, status code = {}", recordId, responseCode);
                 if (responseCode == HttpStatus.SC_UNAUTHORIZED) {
                     throw new InvalidApiKeyException("API key is not valid");
                 } else if (responseCode == HttpStatus.SC_NOT_FOUND) {
