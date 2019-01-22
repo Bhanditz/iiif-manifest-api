@@ -116,7 +116,7 @@ public class ManifestSettings {
 
     @PostConstruct
     private void logImportantSettings() {
-        LOG.info("Manifest settings:");
+        LOG.info("Manifest settings hiero:");
         LOG.info("  Record API Url = {}{} ", this.getRecordApiBaseUrl(), this.getRecordApiPath());
         LOG.info("  Full-Text API Url = {}{} ", this.getFullTextApiBaseUrl(), this.getFullTextApiPath());
         LOG.info("  Suppress parse exceptions = {}", this.getSuppressParseException());
